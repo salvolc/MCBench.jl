@@ -52,6 +52,12 @@ function plot_teststatistic(t::AbstractTestcase, m::TM, s::AnySampler; nbins=32,
         sh = same_bins ? fit(Histogram, Vector{Float64}(svals[idim, :]), h.edges[1]) : fit(Histogram, Vector{Float64}(svals[idim, :]), nbins=nbins)
         h = normalize(h)
         sh = normalize(sh)
+        ttl = if isa(m,TwoSampleMetric) 
+            string(t.info, "-", m.info)
+        else 
+            string(t.info, "-", m.info, "-x", idim)
+        end
+
         plot(h, st=:step, label=string("IID, n = ", length(mvals[idim, :])), title=string(t.info, "-", m.info, "-x", idim), xlabel=m.info)
         plot!(ylabel="Entries", size=(500, 2*500/3), title=string(t.info, "-", m.info, "-x", idim), xlabel=m.info)
         plot!(sh, st=:step, xlabel=m.info, label=string(s.info, ", n = ", length(svals[idim, :])))
@@ -66,8 +72,8 @@ function plot_metrics(t::AbstractTestcase, normvals::Vector{NamedTuple}; plotalp
     normvals=reverse(normvals)
     mkpath(string("./", t.info))
     ylen = length(normvals) * 30
-    plot((0, 0), size=(550, ylen+100), legend=:topleft, xrange=(-3, 3), label="", bottom_margin=3Plots.mm, left_margin=3Plots.mm, framestyle=:box, dpi=400)
-    xlabel!("metric - mean(metric) / std(metric)")
+    plot((0, 0), size=(550, ylen+100), legend=:topleft, xrange=(-3, 3), label="", bottom_margin=3Plots.mm, left_margin=4Plots.mm, framestyle=:box, dpi=400)
+    xlabel!("(metric - mean(metric)) / std(metric)")
     
     yvals = [10 + 30*(i-1) for i in 1:length(normvals)]
     xmax = 3
@@ -87,10 +93,10 @@ function plot_metrics(t::AbstractTestcase, normvals::Vector{NamedTuple}; plotalp
     plot!([1, 2], [ylen*2, ylen*2], fillrange=[-ylen, -ylen], label="", color=:yellow, fillalpha=plotalpha, lw=0)
     plot!([-3, -2], [ylen*2, ylen*2], fillrange=[-ylen, -ylen], label="", color=:red, fillalpha=plotalpha, lw=0)
     plot!([2, 3], [ylen*2, ylen*2], fillrange=[-ylen, -ylen], label="", color=:red, fillalpha=plotalpha, lw=0)
-    
+    plot!(left_margin=10Plots.mm)
     yticks!(yvals, [normvals[i].name for i in 1:length(yvals)], size=(550, ylen), xrange=((-xmax-0.1, xmax+0.1)), yrange=((-10, ylen+10)))
     if infos != []
-        title!(string(t.info, "-"), size=(550, ylen+100))
+        title!(string(t.info, " "), size=(550, ylen+100))
     else
         title!(string(t.info), size=(550, ylen+100))
     end
@@ -108,6 +114,7 @@ end
 function plot_metrics(t::AbstractTestcase, ms::Vector{TM}, s::AnySampler; names=[]) where {TM <: TestMetric}
     normvals = Vector{NamedTuple}(undef, 0)
     for m in ms
+        println(m.info, " ")
         mvals = read_teststatistic(t, m)
         svals = read_teststatistic(t, m, s)
         dims = size(mvals)[1]
@@ -119,9 +126,19 @@ function plot_metrics(t::AbstractTestcase, ms::Vector{TM}, s::AnySampler; names=
             mvalnorm = (smidval - midval) / stdval
             mvalstdnorm = sstdval / stdval
             if names == []
-                push!(normvals, (name=string(m.info, "-x", idim), val=mvalnorm, std=mvalstdnorm))
+                nms = if isa(m,TwoSampleMetric) 
+                    string(m.info)
+                else 
+                    string(m.info, "-x", idim)
+                end
+                push!(normvals, (name=nms, val=mvalnorm, std=mvalstdnorm))
             else
-                push!(normvals, (name=name=string(m.info, "-", names[idim]), val=mvalnorm, std=mvalstdnorm))
+                nms = if isa(m,TwoSampleMetric) 
+                    string(m.info)
+                else 
+                    string(m.info, "(", names[idim], ")")
+                end
+                push!(normvals, (name=nms, val=mvalnorm, std=mvalstdnorm))
             end
             #push!(normvals, (name=string(m.info, "-x", idim), val=mvalnorm, std=mvalstdnorm))
         end
